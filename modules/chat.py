@@ -1,7 +1,6 @@
 import base64
 import copy
 import functools
-import html
 import json
 import re
 from pathlib import Path
@@ -189,16 +188,15 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
         yield output
         return
 
+    # Defining some variables
     just_started = True
     visible_text = None
     stopping_strings = get_stopping_strings(state)
     is_stream = state['stream']
 
-    # Prepare the input
+    # Preparing the input
     if not any((regenerate, _continue)):
-        visible_text = html.escape(text)
-
-        # Apply extensions
+        visible_text = text
         text, visible_text = apply_extensions('chat_input', text, visible_text, state)
         text = apply_extensions('input', text, state, is_chat=True)
 
@@ -210,7 +208,6 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
         if regenerate:
             output['visible'].pop()
             output['internal'].pop()
-
             # *Is typing...*
             if loading_message:
                 yield {'visible': output['visible'] + [[visible_text, shared.processing_message]], 'internal': output['internal']}
@@ -219,11 +216,12 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
             if loading_message:
                 yield {'visible': output['visible'][:-1] + [[visible_text, last_reply[1] + '...']], 'internal': output['internal']}
 
-    # Generate the prompt
+    # Generating the prompt
     kwargs = {
         '_continue': _continue,
         'history': output,
     }
+
     prompt = apply_extensions('custom_generate_chat_prompt', text, state, **kwargs)
     if prompt is None:
         prompt = generate_chat_prompt(text, state, **kwargs)
@@ -234,8 +232,9 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
 
         # Extract the reply
         visible_reply = re.sub("(<USER>|<user>|{{user}})", state['name1'], reply)
-        visible_reply = html.escape(visible_reply)
 
+        # We need this global variable to handle the Stop event,
+        # otherwise gradio gets confused
         if shared.stop_everything:
             output['visible'][-1][1] = apply_extensions('output', output['visible'][-1][1], state, is_chat=True)
             yield output
@@ -313,12 +312,12 @@ def remove_last_message(history):
     else:
         last = ['', '']
 
-    return html.unescape(last[0]), history
+    return last[0], history
 
 
 def send_last_reply_to_input(history):
-    if len(history['visible']) > 0:
-        return html.unescape(history['visible'][-1][1])
+    if len(history['internal']) > 0:
+        return history['internal'][-1][1]
     else:
         return ''
 
@@ -329,7 +328,7 @@ def replace_last_reply(text, state):
     if len(text.strip()) == 0:
         return history
     elif len(history['visible']) > 0:
-        history['visible'][-1][1] = html.escape(text)
+        history['visible'][-1][1] = text
         history['internal'][-1][1] = apply_extensions('input', text, state, is_chat=True)
 
     return history
@@ -337,7 +336,7 @@ def replace_last_reply(text, state):
 
 def send_dummy_message(text, state):
     history = state['history']
-    history['visible'].append([html.escape(text), ''])
+    history['visible'].append([text, ''])
     history['internal'].append([apply_extensions('input', text, state, is_chat=True), ''])
     return history
 
@@ -348,7 +347,7 @@ def send_dummy_reply(text, state):
         history['visible'].append(['', ''])
         history['internal'].append(['', ''])
 
-    history['visible'][-1][1] = html.escape(text)
+    history['visible'][-1][1] = text
     history['internal'][-1][1] = apply_extensions('input', text, state, is_chat=True)
     return history
 

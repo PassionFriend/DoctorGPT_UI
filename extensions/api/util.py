@@ -99,10 +99,7 @@ def _start_cloudflared(port: int, tunnel_id: str, max_attempts: int = 3, on_star
 
     for _ in range(max_attempts):
         try:
-            if tunnel_id is not None:
-                public_url = _run_cloudflared(port, port + 1, tunnel_id=tunnel_id)
-            else:
-                public_url = _run_cloudflared(port, port + 1)
+            public_url = _run_cloudflared(port, port + 1, tunnel_id=tunnel_id)
 
             if on_start:
                 on_start(public_url)
